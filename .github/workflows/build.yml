@@ -14,7 +14,7 @@ jobs:
       - name: Make init script executable
         run: chmod +x init-project.sh
 
-      - name: Run init script to create full project (מלמעלה למטה עד הסוף)
+      - name: Run init script to create full project
         run: ./init-project.sh
 
       - name: Setup JDK 17
@@ -28,10 +28,10 @@ jobs:
         with:
           gradle-version: 8.10.2
 
-      - name: Build knife-battle APK (Victim)
+      - name: Build knife-battle APK
         run: ./gradlew assembleVictimDebug
 
-      - name: Build remote-control APK (Controller)
+      - name: Build remote-control APK
         run: ./gradlew assembleControllerDebug
 
       - name: Upload APKs
@@ -41,4 +41,5 @@ jobs:
           path: |
             app/build/outputs/apk/victim/debug/knife-battle-debug.apk
             app/build/outputs/apk/controller/debug/remote-control-debug.apk
+          if-no-files-found: warn
           retention-days: 7
