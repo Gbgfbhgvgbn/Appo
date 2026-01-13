@@ -1,109 +1,47 @@
-name: Create & Build PoC APKs - Final Stable
+name: Init & Build PoC APKs
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  init-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate Android project
-        run: |
-          cat > settings.gradle << 'END'
-          pluginManagement {
-              repositories {
-                  google()
-                  gradlePluginPortal()
-                  mavenCentral()
-              }
-          }
+      - name: Make init script executable
+        run: chmod +x init-project.sh
 
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
+      - name: Run init script to create full project (מלמעלה למטה עד הסוף)
+        run: ./init-project.sh
 
-          rootProject.name = "PoC"
-          include ':app'
-          END
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-          cat > build.gradle << 'END'
-          plugins {
-              id 'com.android.application' version '8.5.2' apply false
-          }
-          END
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
 
-          cat > gradle.properties << 'END'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx2048m
-          END
+      - name: Build knife-battle APK (Victim)
+        run: ./gradlew assembleVictimDebug
 
-          mkdir -p app/src/main/java/com/research/lab/victim
-          mkdir -p app/src/main/java/com/research/lab/controller
-          mkdir -p app/src/main/res/xml
-          mkdir -p app/src/main/res/values
+      - name: Build remote-control APK (Controller)
+        run: ./gradlew assembleControllerDebug
 
-          cat > app/build.gradle << 'END'
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              compileSdk 35
-              namespace 'com.research.lab'
-
-              defaultConfig {
-                  applicationId "com.research.lab"
-                  minSdk 30
-                  targetSdk 35
-                  versionCode 1
-                  versionName "1.0-poc"
-              }
-
-              flavorDimensions = ["type"]
-              productFlavors {
-                  victim {
-                      dimension "type"
-                      applicationIdSuffix ".victim"
-                      archivesBaseName = "knife-battle"
-                  }
-                  controller {
-                      dimension "type"
-                      applicationIdSuffix ".controller"
-                      archivesBaseName = "remote-control"
-                  }
-              }
-
-              buildTypes {
-                  debug {
-                      minifyEnabled false
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.7.0'
-              implementation 'androidx.core:core:1.13.1'
-          }
-          END
-
-          cat > app/src/main/AndroidManifest.xml << 'END'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-apks
+          path: |
+            app/build/outputs/apk/victim/debug/knife-battle-debug.apk
+            app/build/outputs/apk/controller/debug/remote-control-debug.apk
+          retention-days: 7
               <uses-permission android:name="android.permission.INTERNET" />
 
               <application android:allowBackup="false" android:label="PoC">
