@@ -1,0 +1,28 @@
+name: Cleanup Workspace
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # מאפשר להריץ ידנית לבדיקה
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Remove all files except .yml and .sh
+        run: |
+          echo "מתחיל ניקוי של ה-Workspace..."
+          # פקודה שמוצאת את כל הקבצים בתיקייה הנוכחית
+          # ! -name "*.yml" מתעלם מקבצי הגדרות
+          # ! -name "*.sh" מתעלם מסקריפטים
+          # -not -path '*/.*' שומר על תיקיות נסתרות כמו .git (חשוב להמשך הריצה)
+          
+          find . -maxdepth 1 -type f ! -name "*.yml" ! -name "*.sh" -delete
+          
+          echo "הניקוי הסתיים. הקבצים שנותרו:"
+          ls -F
+          
