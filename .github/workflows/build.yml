@@ -1,47 +1,45 @@
-name: Build From Script
+name: Init & Build PoC APKs
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  build_job:
+  init-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # שלב 1: ניקוי ה-Workspace (שומר רק על ה-YML וה-SH)
-      - name: Cleanup Environment
-        run: |
-          find . -maxdepth 1 -type f ! -name "*.yml" ! -name "*.sh" -delete
-          # אם יש תיקיות, נמחק גם אותן כדי שהפרויקט ייווצר על נקי
-          find . -maxdepth 1 -type d ! -name "." ! -name ".github" ! -name ".git" -exec rm -rf {} +
-          echo "Workspace is clean. Only script and workflow remains."
+      - name: Make init script executable
+        run: chmod +x init-project.sh
 
-      # שלב 2: התקנת סביבת עבודה (Android SDK & Java)
-      # הסקריפט שלך צריך את הכלים האלה מותקנים במכונה כדי להצליח
-      - name: set up JDK 17
+      - name: Run init script to create full project (מלמעלה למטה עד הסוף)
+        run: ./init-project.sh
+
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # שלב 3: הרצת הסקריפט שלך
-      - name: Run Creation Script
-        run: |
-          # מחפש את קובץ ה-sh שלך ונותן לו הרשאת הרצה
-          chmod +x *.sh
-          # מריץ את הסקריפט (בהנחה שיש רק אחד, או שנה את השם למפורש)
-          ./*.sh 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
 
-      # שלב 4: העלאת ה-APK (בדיקה איפה הסקריפט שלך שומר אותו)
-      - name: Upload Resulting APK
+      - name: Build knife-battle APK
+        run: ./gradlew assembleVictimDebug
+
+      - name: Build remote-control APK
+        run: ./gradlew assembleControllerDebug
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: generated-apk
-          # כאן צריך להיזהר: אם הסקריפט שלך יוצר את ה-APK בתיקייה מסוימת, ציין אותה.
-          # הנתיב למטה מחפש כל קובץ APK שנוצר בכל מקום בתיקייה
-          path: "**/*.apk"
+          name: poc-apks
+          path: |
+            app/build/outputs/apk/victim/debug/knife-battle-debug.apk
+            app/build/outputs/apk/controller/debug/remote-control-debug.apk
+          if-no-files-found: warn
+          retention-days: 7
