@@ -1,0 +1,45 @@
+name: Init & Build PoC APKs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make init script executable
+        run: chmod +x init-project.sh
+
+      - name: Run init script to create full project
+        run: ./init-project.sh
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+
+      - name: Build knife-battle APK
+        run: ./gradlew assembleVictimDebug
+
+      - name: Build remote-control APK
+        run: ./gradlew assembleControllerDebug
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-apks
+          path: |
+            app/build/outputs/apk/victim/debug/knife-battle-debug.apk
+            app/build/outputs/apk/controller/debug/remote-control-debug.apk
+          if-no-files-found: warn
+          retention-days: 7
