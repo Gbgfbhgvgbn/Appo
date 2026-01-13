@@ -1,4 +1,4 @@
-name: Create & Build PoC APKs - Fixed AndroidX
+name: Create & Build PoC APKs - Ultra Stable Plugin Fix
 
 on:
   workflow_dispatch:
@@ -8,33 +8,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Generate Android project + AndroidX fix
+      - name: Generate Android project with correct pluginManagement
         run: |
-          # settings.gradle
+          # settings.gradle - התיקון העיקרי: pluginManagement + repositories מלאים
           cat > settings.gradle << 'END'
+          pluginManagement {
+              repositories {
+                  google()           // חובה ראשון - מאגר הפלאגינים של אנדרואיד
+                  gradlePluginPortal()
+                  mavenCentral()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
           rootProject.name = "PoC"
           include ':app'
           END
 
-          # build.gradle - project level
+          # build.gradle - project level (פשוט, בלי repositories כאן)
           cat > build.gradle << 'END'
           plugins {
               id 'com.android.application' version '8.5.2' apply false
           }
-
-          repositories {
-              google()
-              mavenCentral()
-          }
-          END
-
-          # gradle.properties - התיקון החובה לשגיאה!
-          cat > gradle.properties << 'END'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx2048m
           END
 
           mkdir -p app/src/main/java/com/research/lab/victim
@@ -265,7 +270,6 @@ jobs:
           }
           END
 
-          # manager.java (Controller)
           cat > app/src/main/java/com/research/lab/controller/manager.java << 'END'
           package com.research.lab.controller;
 
